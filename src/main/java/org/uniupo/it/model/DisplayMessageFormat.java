@@ -1,10 +1,10 @@
-package org.uniupo.it.Model;
+package org.uniupo.it.model;
 
-public class MessageFormat {
+public class DisplayMessageFormat {
     private boolean isError;
     private String message;
 
-    public MessageFormat(boolean isError, String message) {
+    public DisplayMessageFormat(boolean isError, String message) {
         this.isError = isError;
         this.message = message;
     }
