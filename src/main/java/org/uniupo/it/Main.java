@@ -1,105 +1,200 @@
 package org.uniupo.it;
 
-import com.google.gson.Gson;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.*;
+import org.uniupo.it.dao.DrinkDaoImpl;
+import org.uniupo.it.model.Drink;
 import org.uniupo.it.model.Selection;
 import org.uniupo.it.mqttConfig.MqttOptions;
+import org.uniupo.it.service.DisplayThread;
+import org.uniupo.it.service.DisplayWindow;
 import org.uniupo.it.service.FrontendService;
 
-import java.util.Properties;
-import java.util.Scanner;
-import java.util.UUID;
+import java.util.*;
 
 public class Main {
-
-    static Gson gson = new Gson();
+    private static final Set<Double> MONETE_ACCETTATE = Set.of(0.05, 0.10, 0.20, 0.50, 1.00, 2.00);
 
     public static void main(String[] args) {
-
-        String mqttUrl = "";
-        String machineId = "";
-
-        Properties properties = new Properties();
-        try {
-            properties.load(Main.class.getClassLoader().getResourceAsStream("config.properties"));
-            mqttUrl = properties.getProperty("mqttUrl");
-            machineId = properties.getProperty("machineId");
-        } catch (Exception e) {
-            e.printStackTrace();
+        String mqttUrl= "ssl://localhost:8883";
+        String machineId;
+        String instituteId;
+        if (args.length != 2) {
+            System.out.println("Parametri non validi");
+            System.exit(1);
         }
+        instituteId = args[0];
+        machineId = args[1];
 
         try {
+
             MqttClient mqttClient = new MqttClient(mqttUrl, UUID.randomUUID() + " " + machineId);
-            MqttConnectOptions mqttOptions = new MqttOptions().getOptions();
-            mqttClient.connect(mqttOptions);
-            FrontendService frontendService = new FrontendService(machineId, mqttClient);
-            startMenu(mqttClient,machineId);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+            mqttClient.connect(new MqttOptions().getOptions());
 
+            DisplayWindow.launchDisplay(instituteId, machineId, mqttClient);
+
+            Thread.sleep(1000);
+
+            FrontendService frontendService=new FrontendService(instituteId,machineId, mqttClient);
+            startMenu(frontendService);
+
+        } catch (MqttException e) {
+            System.out.println("Errore nella connessione al broker MQTT.");
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            System.out.println("Errore nell'attesa della terminazione del thread di visualizzazione.");
+            throw new RuntimeException(e);
+        }
     }
 
-    private static void startMenu(MqttClient mqttClient, String machineId) {
+    private static void startMenu(FrontendService frontendService) {
         Scanner scanner = new Scanner(System.in);
         int zucchero = 0;
         boolean running = true;
 
         while (running) {
-            System.out.println("\n--- Menu Macchina ---");
-            System.out.println("1. Aggiungi un'unità di zucchero");
-            System.out.println("2. Rimuovi un'unità di zucchero");
-            System.out.println("3. Visualizza elenco bevande");
+            // Posizionati dopo l'area messaggi
+            System.out.print("\u001B[" + (DisplayThread.getMessageAreaHeight() + 2) + ";1H");
+            // Pulisci il resto dello schermo da questa posizione in giù
+            System.out.print("\u001B[J");
+
+            // Stampa il menu
+            System.out.println("\n=== Menu Macchina Bevande ===");
+            System.out.println("1. Inserisci moneta");
+            System.out.println("2. Gestisci zucchero (" + zucchero + "/5)");
+            System.out.println("3. Seleziona bevanda");
             System.out.println("4. Annulla selezione");
             System.out.println("5. Esci");
             System.out.print("Seleziona un'opzione: ");
 
             int scelta = scanner.nextInt();
 
-            switch (scelta) {
-                case 1 -> {
-                    zucchero++;
-                    System.out.println("Zucchero aggiunto. Totale zucchero: " + zucchero);
-                }
-                case 2 -> {
-                    if (zucchero > 0) {
-                        zucchero--;
-                        System.out.println("Zucchero rimosso. Totale zucchero: " + zucchero);
-                    } else {
-                        System.out.println("Nessuna unità di zucchero da rimuovere.");
+            // Dopo ogni azione, aggiungi una piccola pausa
+            try {
+                switch (scelta) {
+                    case 1 -> {
+                        inserisciMoneta(scanner, frontendService);
+                        Thread.sleep(1500); // Pausa di 1.5 secondi
+                    }
+                    case 2 -> {
+                        zucchero = gestisciZucchero(scanner, zucchero);
+                        Thread.sleep(1000); // Pausa di 1 secondo
+                    }
+                    case 3 -> {
+                        selezionaBevanda(scanner, frontendService, zucchero);
+                        Thread.sleep(1500); // Pausa di 1.5 secondi
+                    }
+                    case 4 -> {
+                        try {
+                            frontendService.publishCancelSelection();
+                            System.out.println("Selezione annullata.");
+                            zucchero = 0;
+                            Thread.sleep(1000); // Pausa di 1 secondo
+                        } catch (MqttException e) {
+                            System.out.println("Errore nell'annullamento della selezione.");
+                            e.printStackTrace();
+                        }
+                    }
+                    case 5 -> {
+                        System.out.println("Arrivederci!");
+                        running = false;
+                    }
+                    default -> {
+                        System.out.println("Scelta non valida, riprova.");
+                        Thread.sleep(1000); // Pausa di 1 secondo
                     }
                 }
-                case 3 -> {
-                    System.out.println("Elenco Bevande Disponibili:");
-                    System.out.println("- Caffè");
-                    System.out.println("- Cappuccino");
-                    System.out.println("- Tè");
-                    System.out.println("- Cioccolata calda");
-                    System.out.print("Seleziona una bevanda: ");
-                    scanner.nextLine(); // Consuma il newline
-                    String bevanda = scanner.nextLine();
-                    String message= gson.toJson(new Selection(bevanda,zucchero));
-                    try {
-                        mqttClient.publish(String.format("macchina/%s/transaction/newSelection",machineId), new MqttMessage(message.getBytes()));
-                    } catch (MqttException e) {
-                        throw new RuntimeException(e);
-                    }
-                    System.out.println("Bevanda selezionata: " + bevanda);
-                }
-                case 4 -> {
-                    System.out.println("Selezione annullata.");
-                    zucchero = 0;
-                }
-                case 5 -> {
-                    System.out.println("Uscita dal programma.");
-                    running = false;
-                }
-                default -> System.out.println("Scelta non valida, riprova.");
+            } catch (InterruptedException e) {
+                System.err.println("Errore durante la pausa: " + e.getMessage());
             }
         }
     }
-}
 
+    private static void inserisciMoneta(Scanner scanner, FrontendService frontendService) {
+        DrinkDaoImpl drinkDao = new DrinkDaoImpl();
+        System.out.println("\nMonete accettate:");
+        List<Double> moneteList = new ArrayList<>(MONETE_ACCETTATE);
+        Collections.sort(moneteList);
+        for (int i = 0; i < moneteList.size(); i++) {
+            System.out.printf("%d. %.2f€%n", i + 1, moneteList.get(i));
+        }
+        System.out.print("Seleziona la moneta (1-" + moneteList.size() + "): ");
+
+        int sceltaMoneta = scanner.nextInt();
+        if (sceltaMoneta >= 1 && sceltaMoneta <= moneteList.size()) {
+            double moneta = moneteList.get(sceltaMoneta - 1);
+            try {
+                drinkDao.insertCoin(moneta);
+                frontendService.publishNewCoinInserted();
+                System.out.printf("Moneta da %.2f€ inserita.%n", moneta);
+            } catch (MqttException e) {
+                System.out.println("Errore nell'inserimento della moneta.");
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("Selezione moneta non valida.");
+        }
+    }
+
+    private static int gestisciZucchero(Scanner scanner, int zucchero) {
+        System.out.println("\n--- Gestione Zucchero ---");
+        System.out.println("1. Aggiungi zucchero");
+        System.out.println("2. Rimuovi zucchero");
+        System.out.println("3. Torna al menu principale");
+        System.out.print("Scelta: ");
+
+        int scelta = scanner.nextInt();
+        switch (scelta) {
+            case 1 -> {
+                if (zucchero < 5) {
+                    zucchero++;
+                    System.out.println("Zucchero aggiunto. Livello: " + zucchero);
+                } else {
+                    System.out.println("Livello massimo di zucchero raggiunto.");
+                }
+            }
+            case 2 -> {
+                if (zucchero > 0) {
+                    zucchero--;
+                    System.out.println("Zucchero rimosso. Livello: " + zucchero);
+                } else {
+                    System.out.println("Livello minimo di zucchero raggiunto.");
+                }
+            }
+            case 3 -> System.out.println("Ritorno al menu principale.");
+            default -> System.out.println("Scelta non valida.");
+        }
+        return zucchero;
+    }
+
+    private static void selezionaBevanda(Scanner scanner, FrontendService frontendService, int zucchero) {
+        try {
+            DrinkDaoImpl drinkDao = new DrinkDaoImpl();
+            List<Drink> drinks = drinkDao.getAllDrinks();
+            System.out.println("\nBevande disponibili:");
+            for (int i = 0; i < drinks.size(); i++) {
+                Drink drink = drinks.get(i);
+                System.out.printf("%d. %s - %s (%.2f€)%n",
+                        i + 1,
+                        drink.getName(),
+                        drink.getDescription(),
+                        drink.getPrice()
+                );
+            }
+            System.out.print("Seleziona una bevanda (1-" + drinks.size() + "): ");
+
+            int sceltaBevanda = scanner.nextInt();
+            if (sceltaBevanda >= 1 && sceltaBevanda <= drinks.size()) {
+                Drink selectedDrink = drinks.get(sceltaBevanda - 1);
+                Selection selection = new Selection(selectedDrink.getCode(), zucchero);
+                frontendService.publishNewSelection(selection);
+                System.out.printf("Bevanda selezionata: %s (Zucchero: %d)%n",
+                        selectedDrink.getName(), zucchero);
+            } else {
+                System.out.println("Selezione bevanda non valida.");
+            }
+        } catch (Exception e) {
+            System.out.println("Errore nel recupero delle bevande dal database.");
+            e.printStackTrace();
+        }
+    }
+}
