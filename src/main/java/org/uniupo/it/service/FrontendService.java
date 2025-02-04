@@ -1,7 +1,10 @@
 package org.uniupo.it.service;
 
 import com.google.gson.Gson;
-import org.eclipse.paho.client.mqttv3.*;
+import javafx.application.Platform;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.uniupo.it.model.Selection;
 import org.uniupo.it.util.Topics;
 
@@ -17,7 +20,13 @@ public class FrontendService {
         this.machineId = machineId;
         this.mqttClient = mqttClient;
         this.instituteId = instituteId;
+        mqttClient.subscribe(String.format(Topics.KILL_SERVICE_TOPIC, instituteId, machineId), this::killServiceHandler);
 
+    }
+
+    private void killServiceHandler(String topic, MqttMessage message) {
+        System.out.println("Service killed, hello darkness my old friend :(");
+        stop();
 
     }
 
@@ -26,8 +35,7 @@ public class FrontendService {
         try {
             String json = gson.toJson(selection, Selection.class);
             mqttClient.publish(String.format(Topics.TRANSACTION_NEW_SELECTION_TOPIC, instituteId, machineId), new MqttMessage(json.getBytes()));
-        }
-        catch (MqttException e) {
+        } catch (MqttException e) {
             System.err.println("Error while publishing message: " + e.getMessage());
             e.printStackTrace();
         }
@@ -45,5 +53,18 @@ public class FrontendService {
 
         mqttClient.publish(String.format(Topics.TRANSACTION_CANCEL_SELECTION_TOPIC, instituteId, machineId), new MqttMessage("Cancel selection".getBytes()));
 
+    }
+
+    public void stop() {
+        Platform.runLater(() -> {
+            try {
+                mqttClient.disconnect();
+                Platform.exit();
+                System.exit(0);
+            } catch (MqttException e) {
+                System.err.println("Error during shutdown: " + e.getMessage());
+                throw new RuntimeException(e);
+            }
+        });
     }
 }

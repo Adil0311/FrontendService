@@ -10,4 +10,6 @@ public class Topics {
     public static final String TRANSACTION_NEW_SELECTION_TOPIC = BASE_TOPIC+"/transaction/newSelection";
     public static final String TRANSACTION_NEW_COIN_INSERTED_TOPIC = BASE_TOPIC+"/transaction/newCoinInserted";
     public static final String TRANSACTION_CANCEL_SELECTION_TOPIC = BASE_TOPIC+"/transaction/cancelSelection";
+
+    public static final String KILL_SERVICE_TOPIC = "macchinette/%s/%s/killService";
 }

@@ -65,12 +65,6 @@ public class DisplayWindow extends Application {
             messageLabel.setTextFill(color);
             messageLabel.setText(message);
 
-            scheduler.schedule(() -> {
-                Platform.runLater(() -> {
-                    messageLabel.setTextFill(Color.WHITE);
-                    messageLabel.setText(WELCOME_MESSAGE);
-                });
-            }, 5, TimeUnit.SECONDS);
         });
     }
 

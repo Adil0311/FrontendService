@@ -1,11 +1,11 @@
 package org.uniupo.it;
 
+import javafx.application.Platform;
 import org.eclipse.paho.client.mqttv3.*;
 import org.uniupo.it.dao.DrinkDaoImpl;
 import org.uniupo.it.model.Drink;
 import org.uniupo.it.model.Selection;
 import org.uniupo.it.mqttConfig.MqttOptions;
-import org.uniupo.it.service.DisplayThread;
 import org.uniupo.it.service.DisplayWindow;
 import org.uniupo.it.service.FrontendService;
 
@@ -30,11 +30,20 @@ public class Main {
             MqttClient mqttClient = new MqttClient(mqttUrl, UUID.randomUUID() + " " + machineId);
             mqttClient.connect(new MqttOptions().getOptions());
 
+
+            Platform.setImplicitExit(true);
             DisplayWindow.launchDisplay(instituteId, machineId, mqttClient);
 
             Thread.sleep(1000);
 
             FrontendService frontendService=new FrontendService(instituteId,machineId, mqttClient);
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    frontendService.stop();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }));
             startMenu(frontendService);
 
         } catch (MqttException e) {
@@ -52,12 +61,7 @@ public class Main {
         boolean running = true;
 
         while (running) {
-            // Posizionati dopo l'area messaggi
-            System.out.print("\u001B[" + (DisplayThread.getMessageAreaHeight() + 2) + ";1H");
-            // Pulisci il resto dello schermo da questa posizione in giù
-            System.out.print("\u001B[J");
 
-            // Stampa il menu
             System.out.println("\n=== Menu Macchina Bevande ===");
             System.out.println("1. Inserisci moneta");
             System.out.println("2. Gestisci zucchero (" + zucchero + "/5)");
@@ -67,28 +71,26 @@ public class Main {
             System.out.print("Seleziona un'opzione: ");
 
             int scelta = scanner.nextInt();
-
-            // Dopo ogni azione, aggiungi una piccola pausa
             try {
                 switch (scelta) {
                     case 1 -> {
                         inserisciMoneta(scanner, frontendService);
-                        Thread.sleep(1500); // Pausa di 1.5 secondi
+                        Thread.sleep(1000);
                     }
                     case 2 -> {
                         zucchero = gestisciZucchero(scanner, zucchero);
-                        Thread.sleep(1000); // Pausa di 1 secondo
+                        Thread.sleep(1000);
                     }
                     case 3 -> {
                         selezionaBevanda(scanner, frontendService, zucchero);
-                        Thread.sleep(1500); // Pausa di 1.5 secondi
+                        Thread.sleep(1000);
                     }
                     case 4 -> {
                         try {
                             frontendService.publishCancelSelection();
                             System.out.println("Selezione annullata.");
                             zucchero = 0;
-                            Thread.sleep(1000); // Pausa di 1 secondo
+                            Thread.sleep(1000);
                         } catch (MqttException e) {
                             System.out.println("Errore nell'annullamento della selezione.");
                             e.printStackTrace();
