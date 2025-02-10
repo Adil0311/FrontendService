@@ -12,6 +12,8 @@ import org.uniupo.it.service.FrontendService;
 import java.util.*;
 
 public class Main {
+
+    public static DrinkDaoImpl drinkDao;
     private static final Set<Double> MONETE_ACCETTATE = Set.of(0.05, 0.10, 0.20, 0.50, 1.00, 2.00);
 
     public static void main(String[] args) {
@@ -24,6 +26,7 @@ public class Main {
         }
         instituteId = args[0];
         machineId = args[1];
+        drinkDao = new DrinkDaoImpl(instituteId, machineId);
 
         try {
 
@@ -112,7 +115,6 @@ public class Main {
     }
 
     private static void inserisciMoneta(Scanner scanner, FrontendService frontendService) {
-        DrinkDaoImpl drinkDao = new DrinkDaoImpl();
         System.out.println("\nMonete accettate:");
         List<Double> moneteList = new ArrayList<>(MONETE_ACCETTATE);
         Collections.sort(moneteList);
@@ -170,7 +172,6 @@ public class Main {
 
     private static void selezionaBevanda(Scanner scanner, FrontendService frontendService, int zucchero) {
         try {
-            DrinkDaoImpl drinkDao = new DrinkDaoImpl();
             List<Drink> drinks = drinkDao.getAllDrinks();
             System.out.println("\nBevande disponibili:");
             for (int i = 0; i < drinks.size(); i++) {

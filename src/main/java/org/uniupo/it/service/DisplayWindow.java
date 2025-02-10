@@ -49,7 +49,7 @@ public class DisplayWindow extends Application {
 
         Scene scene = new Scene(root, 400, 200);
         primaryStage.setScene(scene);
-        primaryStage.setTitle("Display Macchina " + machineId);
+        primaryStage.setTitle("Display " +instituteId +"-"+machineId);
         primaryStage.setAlwaysOnTop(true);
         primaryStage.initStyle(StageStyle.DECORATED);
         primaryStage.setMinWidth(400);
