@@ -12,4 +12,8 @@ public class Topics {
     public static final String TRANSACTION_CANCEL_SELECTION_TOPIC = BASE_TOPIC+"/transaction/cancelSelection";
 
     public static final String KILL_SERVICE_TOPIC = "macchinette/%s/%s/killService";
+
+    public static final String BALANCE_RETURN_MONEY_TOPIC = BASE_TOPIC+"/balance/returnMoney";
+
+
 }

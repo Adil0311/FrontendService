@@ -61,16 +61,14 @@ public class Main {
     private static void startMenu(FrontendService frontendService) {
         Scanner scanner = new Scanner(System.in);
         int zucchero = 0;
-        boolean running = true;
 
-        while (running) {
+        while (true) {
 
             System.out.println("\n=== Menu Macchina Bevande ===");
             System.out.println("1. Inserisci moneta");
             System.out.println("2. Gestisci zucchero (" + zucchero + "/5)");
             System.out.println("3. Seleziona bevanda");
             System.out.println("4. Annulla selezione");
-            System.out.println("5. Esci");
             System.out.print("Seleziona un'opzione: ");
 
             int scelta = scanner.nextInt();
@@ -78,34 +76,29 @@ public class Main {
                 switch (scelta) {
                     case 1 -> {
                         inserisciMoneta(scanner, frontendService);
-                        Thread.sleep(1000);
+
                     }
                     case 2 -> {
                         zucchero = gestisciZucchero(scanner, zucchero);
-                        Thread.sleep(1000);
+
                     }
                     case 3 -> {
                         selezionaBevanda(scanner, frontendService, zucchero);
-                        Thread.sleep(1000);
+
                     }
                     case 4 -> {
                         try {
                             frontendService.publishCancelSelection();
                             System.out.println("Selezione annullata.");
                             zucchero = 0;
-                            Thread.sleep(1000);
                         } catch (MqttException e) {
                             System.out.println("Errore nell'annullamento della selezione.");
                             e.printStackTrace();
                         }
                     }
-                    case 5 -> {
-                        System.out.println("Arrivederci!");
-                        running = false;
-                    }
                     default -> {
                         System.out.println("Scelta non valida, riprova.");
-                        Thread.sleep(1000); // Pausa di 1 secondo
+                        Thread.sleep(1000);
                     }
                 }
             } catch (InterruptedException e) {
@@ -127,9 +120,15 @@ public class Main {
         if (sceltaMoneta >= 1 && sceltaMoneta <= moneteList.size()) {
             double moneta = moneteList.get(sceltaMoneta - 1);
             try {
-                drinkDao.insertCoin(moneta);
-                frontendService.publishNewCoinInserted();
-                System.out.printf("Moneta da %.2f€ inserita.%n", moneta);
+                if (drinkDao.verifyBalanceCoin(moneta)) {
+                    drinkDao.insertCoin(moneta);
+                    frontendService.publishNewCoinInserted();
+                    System.out.printf("Moneta da %.2f€ inserita.%n", moneta);
+                }
+                else {
+                    frontendService.publishScreenMessage("Moneta non accettata");
+                }
+
             } catch (MqttException e) {
                 System.out.println("Errore nell'inserimento della moneta.");
                 e.printStackTrace();

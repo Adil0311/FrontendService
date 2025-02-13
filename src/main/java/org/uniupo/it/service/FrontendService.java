@@ -5,6 +5,7 @@ import javafx.application.Platform;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.uniupo.it.model.DisplayMessageFormat;
 import org.uniupo.it.model.Selection;
 import org.uniupo.it.util.Topics;
 
@@ -55,6 +56,7 @@ public class FrontendService {
 
     }
 
+
     public void stop() {
         Platform.runLater(() -> {
             try {
@@ -66,5 +68,17 @@ public class FrontendService {
                 throw new RuntimeException(e);
             }
         });
+    }
+
+
+    public void publishScreenMessage(String monetaNonAccettata) {
+
+        String json = gson.toJson(new DisplayMessageFormat(true,monetaNonAccettata), DisplayMessageFormat.class);
+        try {
+            mqttClient.publish(String.format(Topics.DISPLAY_TOPIC_UPDATE, instituteId, machineId), new MqttMessage(json.getBytes()));
+        } catch (MqttException e) {
+            System.err.println("Error while publishing message: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

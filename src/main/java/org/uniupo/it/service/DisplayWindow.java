@@ -1,5 +1,6 @@
 package org.uniupo.it.service;
 
+import com.google.gson.Gson;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -13,22 +14,29 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.uniupo.it.model.DisplayMessageFormat;
-import com.google.gson.Gson;
-import java.util.logging.Logger;
-import java.util.logging.Level;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ScheduledExecutorService;
 
 public class DisplayWindow extends Application {
-    private static final Logger LOGGER = Logger.getLogger(DisplayWindow.class.getName());
+    private static final Gson gson = new Gson();
+    private static final String WELCOME_MESSAGE = "Benvenuto!";
+    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static Label messageLabel;
     private static String instituteId;
     private static String machineId;
     private static MqttClient mqttClient;
-    private static final Gson gson = new Gson();
-    private static final String WELCOME_MESSAGE = "Benvenuto!";
-    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+    public static void launchDisplay(String instId, String machId, MqttClient client) {
+        if (instId == null || machId == null || client == null) {
+
+            throw new IllegalArgumentException("InstId, MachId, and Client cannot be null");
+        }
+
+        instituteId = instId;
+        machineId = machId;
+        mqttClient = client;
+        new Thread(() -> Application.launch(DisplayWindow.class)).start();
+    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -49,7 +57,7 @@ public class DisplayWindow extends Application {
 
         Scene scene = new Scene(root, 400, 200);
         primaryStage.setScene(scene);
-        primaryStage.setTitle("Display " +instituteId +"-"+machineId);
+        primaryStage.setTitle("Display " + instituteId + "-" + machineId);
         primaryStage.setAlwaysOnTop(true);
         primaryStage.initStyle(StageStyle.DECORATED);
         primaryStage.setMinWidth(400);
@@ -84,21 +92,8 @@ public class DisplayWindow extends Application {
                 }
             });
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error setting up MQTT listener", e);
             showMessage("Error setting up message listener: " + e.getMessage(), Color.RED);
         }
-    }
-
-    public static void launchDisplay(String instId, String machId, MqttClient client) {
-        if (instId == null || machId == null || client == null) {
-            LOGGER.log(Level.SEVERE, "Cannot launch display with null parameters");
-            throw new IllegalArgumentException("InstId, MachId, and Client cannot be null");
-        }
-
-        instituteId = instId;
-        machineId = machId;
-        mqttClient = client;
-        new Thread(() -> Application.launch(DisplayWindow.class)).start();
     }
 
     @Override

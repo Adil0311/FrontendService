@@ -46,4 +46,22 @@ public class DrinkDaoImpl implements DrinkDao {
             throw new RuntimeException("Error inserting coin", e);
         }
     }
+
+    @Override
+    public boolean verifyBalanceCoin(double coin) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(SQLQueries.Machine.getCheckBalance(instituteId, machineId))) {
+
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                double currentBalance = rs.getDouble("totalBalance");
+                double maxBalance = rs.getDouble("maxBalance");
+
+                return (currentBalance + coin) <= maxBalance;
+            }
+            throw new RuntimeException("Machine data not found");
+        } catch (SQLException e) {
+            throw new RuntimeException("Error checking balance", e);
+        }
+    }
 }

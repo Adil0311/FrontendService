@@ -31,5 +31,11 @@ public final class SQLQueries {
         public static String getInsertCoin(String instituteId, String machineId) {
             return String.format(INSERT_COIN, getSchemaName(instituteId, machineId));
         }
+        private static final String CHECK_BALANCE = """
+            SELECT "totalBalance", "maxBalance" FROM %s."Machine";
+            """;
+        public static String getCheckBalance(String instituteId, String machineId) {
+            return String.format(CHECK_BALANCE, getSchemaName(instituteId, machineId));
+        }
     }
 }

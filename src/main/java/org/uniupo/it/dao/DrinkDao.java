@@ -7,4 +7,5 @@ import java.util.List;
 public interface DrinkDao {
     List<Drink> getAllDrinks();
     void insertCoin(double coin);
+    boolean verifyBalanceCoin(double coin);
 }
